@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supermarket Inventory & Billing System | DBMS Lab DA-3 (MongoDB)</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <!-- Top Header Bar -->
+  <header class="top-header">
+    <div class="brand-section">
+      <h1>🛒 Supermarket Inventory & Billing System</h1>
+      <div class="subtitle">DBMS Lab DA-3 (MongoDB) | Student: <strong>Siddhartha Beldar (25BCE5089)</strong> | Slot: D1+TD1</div>
+    </div>
+    <div class="header-status-area">
+      <div class="status-badge" id="db-status-badge">
+        <span class="status-pulse"></span>
+        <span id="db-status-text">Connecting to MongoDB...</span>
+      </div>
+      <button class="btn btn-outline btn-sm" id="btn-reseed" style="color: #ffffff; border-color: #64748b;" title="Reset and populate database with exact DA-2 assignment records">
+        🔄 Reseed DA-2 Data
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Navigation Tabs -->
+  <nav class="main-nav">
+    <button class="nav-tab active" data-tab="tab-pos">💳 POS Billing Counter</button>
+    <button class="nav-tab" data-tab="tab-inventory">📦 Inventory & Batches</button>
+    <button class="nav-tab" data-tab="tab-products">🏷️ Products & Pricing</button>
+    <button class="nav-tab" data-tab="tab-masters">🏢 Master Records</button>
+    <button class="nav-tab" data-tab="tab-returns">🔄 Returns & Restock</button>
+    <button class="nav-tab" data-tab="tab-reports">📊 Reports & Analytics</button>
+    <button class="nav-tab" data-tab="tab-viva">🎓 Lab Viva & Query Explorer</button>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main class="container">
+
+    <!-- ============================================================ -->
+    <!-- TAB 1: POS BILLING COUNTER                                   -->
+    <!-- ============================================================ -->
+    <div class="tab-pane active" id="tab-pos">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">💳 Point of Sale (POS) Billing Counter</div>
+          <span class="badge badge-info" id="pos-time-badge">Live System</span>
+        </div>
+
+        <div class="pos-layout">
+          <!-- Left Column: Transaction Details & Cart Items -->
+          <div>
+            <div class="form-grid" style="margin-bottom: 1.25rem;">
+              <div class="form-group">
+                <label for="pos-customer-select">Customer *</label>
+                <select id="pos-customer-select" class="form-control">
+                  <option value="">-- Select Customer --</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="pos-employee-select">Cashier Employee *</label>
+                <select id="pos-employee-select" class="form-control">
+                  <option value="">-- Select Cashier --</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="pos-bill-date">Bill Date</label>
+                <input type="date" id="pos-bill-date" class="form-control">
+              </div>
+            </div>
+
+            <div class="card" style="background: #fafafa; border: 1px dashed var(--border); padding: 1rem; margin-bottom: 1rem;">
+              <div style="font-weight: 700; margin-bottom: 0.5rem; font-size: 0.95rem;">➕ Add Item from Inventory Batch</div>
+              <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr auto; align-items: flex-end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label for="pos-batch-select">Available Batch (Stock & Price)</label>
+                  <select id="pos-batch-select" class="form-control">
+                    <option value="">-- Select Inventory Batch --</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label for="pos-item-qty">Quantity</label>
+                  <input type="number" id="pos-item-qty" class="form-control" min="1" value="1">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label>Available Stock</label>
+                  <input type="text" id="pos-avail-stock" class="form-control" readonly placeholder="0" style="background: #f1f5f9;">
+                </div>
+                <div>
+                  <button type="button" class="btn btn-primary" id="btn-add-to-cart">Add Item</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cart Table -->
+            <div class="table-responsive">
+              <table class="data-table" id="pos-cart-table">
+                <thead>
+                  <tr>
+                    <th>Batch #</th>
+                    <th>Product</th>
+                    <th>Unit Price</th>
+                    <th>Quantity</th>
+                    <th>Subtotal (₹)</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="pos-cart-tbody">
+                  <tr>
+                    <td colspan="6" style="text-align: center; color: var(--text-muted);">Cart is empty. Select a batch above to add items.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Right Column: Bill Summary & Checkout -->
+          <div>
+            <div class="cart-summary">
+              <h3 style="margin-bottom: 1rem; font-size: 1.1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                🧾 Bill Summary
+              </h3>
+
+              <div class="summary-row">
+                <span>Gross Amount:</span>
+                <span id="pos-gross-amt" style="font-weight: 700;">₹0.00</span>
+              </div>
+
+              <div class="summary-row" style="align-items: center;">
+                <span>Discount (₹):</span>
+                <input type="number" id="pos-discount" class="form-control" style="width: 110px; text-align: right;" value="0" min="0" step="1">
+              </div>
+
+              <div class="summary-row total">
+                <span>Net Payable:</span>
+                <span id="pos-net-amt">₹0.00</span>
+              </div>
+
+              <div style="margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                <button type="button" class="btn btn-success" id="btn-complete-checkout" style="font-size: 1rem; padding: 0.85rem;">
+                  ✅ Complete Bill & Update Stock
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-cart">
+                  🗑️ Clear Cart
+                </button>
+              </div>
+
+              <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+                * Stock is decremented atomically in MongoDB using <code>$inc: { Stock_qty: -qty }</code>. Transactions validate available quantities before checkout.
+              </div>
+            </div>
+
+            <!-- Recent Bills Quick List -->
+            <div class="card" style="margin-top: 1rem; padding: 0.75rem;">
+              <div style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.5rem;">Recent Bill Transactions</div>
+              <div id="pos-recent-bills" style="font-size: 0.85rem; max-height: 180px; overflow-y: auto;">
+                Loading recent transactions...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 2: INVENTORY & BATCHES                                    -->
+    <!-- ============================================================ -->
+    <div class="tab-pane" id="tab-inventory">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon blue">📦</div>
+          <div>
+            <div class="kpi-value" id="kpi-inv-batches">0</div>
+            <div class="kpi-label">Active Batches</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon green">📊</div>
+          <div class="kpi-value" id="kpi-inv-stock">0</div>
+          <div class="kpi-label">Total Stock Quantity</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon yellow">💰</div>
+          <div>
+            <div class="kpi-value" id="kpi-inv-value">₹0</div>
+            <div class="kpi-label">Total Inventory Value</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon red">⚠️</div>
+          <div>
+            <div class="kpi-value" id="kpi-inv-low">0</div>
+            <div class="kpi-label">Low Stock Batches</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📦 Batch Inventory Tracking (DA-1 & DA-2 Table 1)</div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-primary btn-sm" id="btn-open-add-batch">➕ Add New Batch</button>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+          <input type="text" id="inv-search" class="form-control" placeholder="Search by Product Name or Batch #..." style="max-width: 300px;">
+          <select id="inv-filter-status" class="form-control" style="max-width: 200px;">
+            <option value="ALL">All Stock Statuses</option>
+            <option value="Available">Available Only</option>
+            <option value="Low Stock">Low Stock (≤ Reorder Level)</option>
+            <option value="Out of Stock">Out of Stock</option>
+          </select>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="inventory-table">
+            <thead>
+              <tr>
+                <th>Batch #</th>
+                <th>Product</th>
+                <th>Branch</th>
+                <th>Supplier</th>
+                <th>Mfg Date</th>
+                <th>Exp Date</th>
+                <th>Reorder Level</th>
+                <th>Stock Qty</th>
+                <th>Cost Price (₹)</th>
+                <th>Selling Price (₹)</th>
+                <th>Stock Value (₹)</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-tbody">
+              <tr><td colspan="13" style="text-align: center;">Loading inventory...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 3: PRODUCTS & PRICING                                     -->
+    <!-- ============================================================ -->
+    <div class="tab-pane" id="tab-products">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🏷️ Products Catalog & Pricing Analysis (Table 9)</div>
+          <button class="btn btn-primary btn-sm" id="btn-open-add-product">➕ Add New Product</button>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center;">
+          <input type="text" id="prod-search" class="form-control" placeholder="Search product name..." style="max-width: 250px;">
+          <select id="prod-filter-category" class="form-control" style="max-width: 200px;">
+            <option value="">All Categories</option>
+          </select>
+          <select id="prod-sort" class="form-control" style="max-width: 200px;">
+            <option value="id">Sort by ID</option>
+            <option value="price_asc">Price: Low to High (DA-2 Query 4)</option>
+            <option value="price_desc">Price: High to Low</option>
+            <option value="name">Product Name (A-Z)</option>
+          </select>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="number" id="prod-min-price" class="form-control" placeholder="Min ₹" style="width: 90px;">
+            <span>-</span>
+            <input type="number" id="prod-max-price" class="form-control" placeholder="Max ₹" style="width: 90px;">
+            <button class="btn btn-secondary btn-sm" id="btn-prod-filter-price">Filter</button>
+            <button class="btn btn-outline btn-sm" id="btn-prod-reset-filter">Reset</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="data-table" id="products-table">
+            <thead>
+              <tr>
+                <th>Product ID</th>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Base Price (₹)</th>
+                <th>Tax Rate (%)</th>
+                <th>Selling Price (Tax Incl.)</th>
+                <th>Price Category</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="products-tbody">
+              <tr><td colspan="8" style="text-align: center;">Loading products...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 4: MASTER RECORDS                                         -->
+    <!-- ============================================================ -->
+    <div class="tab-pane" id="tab-masters">
+      <div class="card">
+        <div class="subtabs">
+          <button class="subtab-btn active" data-subtab="subtab-categories">Categories (Table 5)</button>
+          <button class="subtab-btn" data-subtab="subtab-suppliers">Suppliers (Table 7)</button>
+          <button class="subtab-btn" data-subtab="subtab-branches">Branches (Table 3)</button>
+          <button class="subtab-btn" data-subtab="subtab-employees">Employees & Employs (Table 8 & 11)</button>
+          <button class="subtab-btn" data-subtab="subtab-customers">Customers (Table 10)</button>
+        </div>
+
+        <!-- Subtab Categories -->
+        <div class="subtab-content" id="subtab-categories">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+            <h3>Categories</h3>
+            <button class="btn btn-primary btn-sm" id="btn-open-add-category">➕ Add Category</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="categories-table">
+              <thead><tr><th>Category ID</th><th>Category Name</th><th>Actions</th></tr></thead>
+              <tbody id="categories-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Subtab Suppliers -->
+        <div class="subtab-content" id="subtab-suppliers" style="display: none;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+            <h3>Suppliers</h3>
+            <button class="btn btn-primary btn-sm" id="btn-open-add-supplier">➕ Add Supplier</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="suppliers-table">
+              <thead><tr><th>Supplier ID</th><th>Company Name</th><th>Contact Person</th><th>Phone</th><th>Actions</th></tr></thead>
+              <tbody id="suppliers-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Subtab Branches -->
+        <div class="subtab-content" id="subtab-branches" style="display: none;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+            <h3>Branches</h3>
+            <button class="btn btn-primary btn-sm" id="btn-open-add-branch">➕ Add Branch</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="branches-table">
+              <thead><tr><th>Branch ID</th><th>Location</th><th>Phone</th><th>Actions</th></tr></thead>
+              <tbody id="branches-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Subtab Employees -->
+        <div class="subtab-content" id="subtab-employees" style="display: none;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+            <h3>Employees</h3>
+            <button class="btn btn-primary btn-sm" id="btn-open-add-employee">➕ Add Employee</button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="employees-table">
+              <thead><tr><th>Emp ID</th><th>Name</th><th>Role</th><th>Salary (₹)</th><th>Shift</th><th>Branch Location</th><th>Actions</th></tr></thead>
+              <tbody id="employees-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Subtab Customers -->
+        <div class="subtab-content" id="subtab-customers" style="display: none;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+            <h3>Customers</h3>
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="cust-search" class="form-control" placeholder="Search customer (e.g. K)..." style="width: 200px;">
+              <button class="btn btn-primary btn-sm" id="btn-open-add-customer">➕ Add Customer</button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="customers-table">
+              <thead><tr><th>Cust ID</th><th>Name</th><th>Phone Number</th><th>Email</th><th>Actions</th></tr></thead>
+              <tbody id="customers-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 5: RETURNS & RESTOCK                                      -->
+    <!-- ============================================================ -->
+    <div class="tab-pane" id="tab-returns">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔄 Returns Management & Inventory Restocking (Table 2)</div>
+        </div>
+
+        <!-- Log Return Form -->
+        <div class="card" style="background: #fafafa; border: 1px dashed var(--border); padding: 1.25rem;">
+          <h4 style="margin-bottom: 0.75rem;">➕ Process Customer Return</h4>
+          <form id="form-process-return">
+            <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+              <div class="form-group">
+                <label for="return-batch-select">Batch Number *</label>
+                <select id="return-batch-select" class="form-control" required>
+                  <option value="">-- Select Batch to Return --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="return-quantity">Quantity to Restock *</label>
+                <input type="number" id="return-quantity" class="form-control" min="1" value="1" required>
+              </div>
+              <div class="form-group">
+                <label for="return-date">Return Date</label>
+                <input type="date" id="return-date" class="form-control">
+              </div>
+              <div class="form-group">
+                <label for="return-reason">Reason</label>
+                <input type="text" id="return-reason" class="form-control" placeholder="e.g., Damaged seal, wrong size">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-warning" style="margin-top: 0.5rem;">
+              🔄 Restock Batch Inventory & Log Return
+            </button>
+          </form>
+        </div>
+
+        <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem;">Logged Returns History</h4>
+        <div class="table-responsive">
+          <table class="data-table" id="returns-table">
+            <thead>
+              <tr>
+                <th>Return ID</th>
+                <th>Return Date</th>
+                <th>Batch #</th>
+                <th>Product Name</th>
+                <th>Quantity Returned</th>
+                <th>Reason</th>
+                <th>Current Stock</th>
+              </tr>
+            </thead>
+            <tbody id="returns-tbody">
+              <tr><td colspan="7" style="text-align: center;">Loading returns...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 6: REPORTS & ANALYTICS                                    -->
+    <!-- ============================================================ -->
+    <div class="tab-pane" id="tab-reports">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon blue">💰</div>
+          <div>
+            <div class="kpi-value" id="rep-kpi-revenue">₹0.00</div>
+            <div class="kpi-label">Total Revenue (Net)</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon green">🧾</div>
+          <div>
+            <div class="kpi-value" id="rep-kpi-bills">0</div>
+            <div class="kpi-label">Total Bills Generated</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon yellow">🎁</div>
+          <div>
+            <div class="kpi-value" id="rep-kpi-discounts">₹0.00</div>
+            <div class="kpi-label">Total Customer Discounts</div>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon red">📈</div>
+          <div>
+            <div class="kpi-value" id="rep-kpi-avgprice">₹0.00</div>
+            <div class="kpi-label">Avg Product Price (DA-2 Q15)</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <!-- Category Breakdown Card -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📊 Category Breakdown (DA-2 Query 12 & 13)</div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="rep-category-table">
+              <thead>
+                <tr>
+                  <th>Category ID</th>
+                  <th>Category Name</th>
+                  <th>Product Count</th>
+                  <th>Avg Price (₹)</th>
+                </tr>
+              </thead>
+              <tbody id="rep-category-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Product Price Statistics Card -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📐 Price Statistical Aggregates (DA-2 Query 15)</div>
+          </div>
+          <div style="padding: 1rem 0;">
+            <div class="summary-row" style="font-size: 1rem; border-bottom: 1px solid var(--border); padding: 0.75rem 0;">
+              <span>Total Price Sum (SUM):</span>
+              <strong id="rep-stat-sum">₹0.00</strong>
+            </div>
+            <div class="summary-row" style="font-size: 1rem; border-bottom: 1px solid var(--border); padding: 0.75rem 0;">
+              <span>Average Base Price (AVG):</span>
+              <strong id="rep-stat-avg">₹0.00</strong>
+            </div>
+            <div class="summary-row" style="font-size: 1rem; border-bottom: 1px solid var(--border); padding: 0.75rem 0;">
+              <span>Maximum Base Price (MAX):</span>
+              <strong id="rep-stat-max">₹0.00</strong>
+            </div>
+            <div class="summary-row" style="font-size: 1rem; padding: 0.75rem 0;">
+              <span>Minimum Base Price (MIN):</span>
+              <strong id="rep-stat-min">₹0.00</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Low Stock Alerts Report -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">⚠️ Reorder Threshold Alerts (Batches with Stock ≤ Reorder Level)</div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table" id="rep-lowstock-table">
+            <thead>
+              <tr>
+                <th>Batch #</th>
+                <th>Product ID</th>
+                <th>Product Name</th>
+                <th>Current Stock</th>
+                <th>Reorder Level</th>
+                <th>Deficit</th>
+              </tr>
+            </thead>
+            <tbody id="rep-lowstock-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 7: LAB VIVA & QUERY EXPLORER                             -->
+    <!-- ============================================================ -->
+    <div class="tab-pane" id="tab-viva">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🎓 Interactive Lab Viva & MongoDB Query Demonstration</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+              Demonstrate all 15 DA-2 SQL Queries & 15 PL/SQL Programs translated into live MongoDB Aggregation Pipelines and Driver Operations!
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-success btn-sm" id="btn-run-all-queries">🚀 Run All 30 Queries</button>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;">
+          <button class="btn btn-outline btn-sm filter-query-btn active" data-filter="all">All Queries (30)</button>
+          <button class="btn btn-outline btn-sm filter-query-btn" data-filter="sql">SQL Operations (1-15)</button>
+          <button class="btn btn-outline btn-sm filter-query-btn" data-filter="plsql">PL/SQL Functions & Procedures (1-15)</button>
+        </div>
+
+        <div id="viva-queries-container">
+          <div style="text-align: center; padding: 2rem;">Loading query catalog...</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: PRINTABLE INVOICE RECEIPT                             -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="modal-invoice">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3>🧾 Bill Transaction Invoice</h3>
+        <button class="close-btn" data-close="modal-invoice">&times;</button>
+      </div>
+      <div class="printable-receipt" id="invoice-receipt-body">
+        <!-- Dynamic Invoice HTML -->
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+        <button class="btn btn-secondary btn-sm" data-close="modal-invoice">Close</button>
+        <button class="btn btn-primary btn-sm" id="btn-print-invoice" onclick="window.print();">🖨️ Print Invoice</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: ADD / EDIT PRODUCT                                    -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="modal-product">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-product-title">Add New Product</h3>
+        <button class="close-btn" data-close="modal-product">&times;</button>
+      </div>
+      <form id="form-product">
+        <input type="hidden" id="prod-form-id">
+        <div class="form-group">
+          <label for="prod-form-name">Product Name *</label>
+          <input type="text" id="prod-form-name" class="form-control" required placeholder="e.g. Basmati Rice">
+        </div>
+        <div class="form-group">
+          <label for="prod-form-cat">Category *</label>
+          <select id="prod-form-cat" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label for="prod-form-price">Base Price (₹) *</label>
+          <input type="number" id="prod-form-price" class="form-control" step="0.5" required placeholder="e.g. 60.00">
+        </div>
+        <div class="form-group">
+          <label for="prod-form-tax">Tax Rate (%) *</label>
+          <input type="number" id="prod-form-tax" class="form-control" step="0.5" required placeholder="e.g. 5.00">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <button type="button" class="btn btn-secondary" data-close="modal-product">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: ADD / EDIT BATCH                                      -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="modal-batch">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-batch-title">Add New Inventory Batch</h3>
+        <button class="close-btn" data-close="modal-batch">&times;</button>
+      </div>
+      <form id="form-batch">
+        <div class="form-group">
+          <label for="batch-form-prod">Product *</label>
+          <select id="batch-form-prod" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label for="batch-form-supp">Supplier *</label>
+          <select id="batch-form-supp" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label for="batch-form-branch">Branch *</label>
+          <select id="batch-form-branch" class="form-control" required></select>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="batch-form-mfg">Mfg Date</label>
+            <input type="date" id="batch-form-mfg" class="form-control">
+          </div>
+          <div class="form-group">
+            <label for="batch-form-exp">Exp Date</label>
+            <input type="date" id="batch-form-exp" class="form-control">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="batch-form-stock">Stock Quantity *</label>
+            <input type="number" id="batch-form-stock" class="form-control" min="0" required placeholder="100">
+          </div>
+          <div class="form-group">
+            <label for="batch-form-reorder">Reorder Level *</label>
+            <input type="number" id="batch-form-reorder" class="form-control" min="0" required placeholder="20">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="batch-form-cost">Cost Price (₹) *</label>
+            <input type="number" id="batch-form-cost" class="form-control" step="0.5" required placeholder="50.00">
+          </div>
+          <div class="form-group">
+            <label for="batch-form-sell">Selling Price (₹) *</label>
+            <input type="number" id="batch-form-sell" class="form-control" step="0.5" required placeholder="60.00">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <button type="button" class="btn btn-secondary" data-close="modal-batch">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Batch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: ADD / EDIT CUSTOMER                                   -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="modal-customer">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-customer-title">Add Customer</h3>
+        <button class="close-btn" data-close="modal-customer">&times;</button>
+      </div>
+      <form id="form-customer">
+        <input type="hidden" id="cust-form-id">
+        <div class="form-group">
+          <label for="cust-form-name">Customer Name *</label>
+          <input type="text" id="cust-form-name" class="form-control" required placeholder="Full Name">
+        </div>
+        <div class="form-group">
+          <label for="cust-form-phone">Phone Number</label>
+          <input type="text" id="cust-form-phone" class="form-control" placeholder="10-digit number">
+        </div>
+        <div class="form-group">
+          <label for="cust-form-email">Email Address</label>
+          <input type="email" id="cust-form-email" class="form-control" placeholder="name@example.com">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <button type="button" class="btn btn-secondary" data-close="modal-customer">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Customer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- JavaScript Modules -->
+  <script src="/js/api.js"></script>
+  <script src="/js/pos.js"></script>
+  <script src="/js/inventory.js"></script>
+  <script src="/js/crud.js"></script>
+  <script src="/js/returns.js"></script>
+  <script src="/js/reports.js"></script>
+  <script src="/js/viva.js"></script>
+</body>
+</html>

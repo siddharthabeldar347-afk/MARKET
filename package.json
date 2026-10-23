@@ -1,0 +1,29 @@
+{
+  "name": "supermarket-mongodb",
+  "version": "1.0.0",
+  "description": "Supermarket Inventory and Billing System - DBMS Lab DA-3 (MongoDB)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "setup": "node db/schema.js",
+    "seed": "node db/seed.js",
+    "test": "node tests/run-tests.js"
+  },
+  "keywords": [
+    "mongodb",
+    "express",
+    "nodejs",
+    "dbms",
+    "inventory",
+    "billing"
+  ],
+  "author": "Siddhartha Beldar (25BCE5089)",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongodb": "^6.8.0"
+  }
+}
